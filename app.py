@@ -2,74 +2,7 @@ import streamlit as st
 import os
 import fitz  # PyMuPDF
 import re
-
-
-# === Scoring Model ===
-def score_resume(text):
-    score = 0
-    flags = []
-
-    # Check for welding experience (5+ yrs)
-    if re.search(
-        r"\b(5|six|6|seven|7|eight|8|nine|9|ten|10)\+?\s*(years|yrs).*weld", text, re.I
-    ):
-        score += 20
-
-    # Welding types
-    if re.search(r"flux\s*core", text, re.I):
-        score += 15
-    if re.search(r"\bmig\b", text, re.I):
-        score += 15
-
-    # Materials
-    if re.search(r"stainless\s*steel|ss\b", text, re.I):
-        score += 15
-    if re.search(r"carbon\s*steel|cs\b", text, re.I):
-        score += 10
-
-    # Blueprint, tape measure
-    blueprint = bool(re.search(r"blue\s*print", text, re.I))
-    tape = bool(re.search(r"tape\s*measure", text, re.I))
-    if blueprint:
-        score += 5
-    if tape:
-        score += 5
-
-    # Fabrication tools
-    if re.search(r"grinder|torch|fabrication", text, re.I):
-        score += 5
-
-    # Safety/inspection
-    if re.search(r"safety|osha|inspect", text, re.I):
-        score += 5
-
-    # Tank or pressure vessel
-    if re.search(r"tank|pressure\s*vessel", text, re.I):
-        score += 30
-        flags.append("✅ Tank/Pressure Vessel work")
-
-    # Prior employment at Savannah Tank
-    if "savannah tank" in text.lower():
-        flags.append("✅ Worked at Savannah Tank")
-        years = re.findall(r"(20\d{2})", text)
-        if years:
-            flags.append(f"📅 Years: {', '.join(sorted(set(years)))}")
-
-    # Location info
-    zip_match = re.search(r"\b(31[2-5]\d{2})\b", text)
-    if zip_match:
-        score += 5
-        flags.append(f"📍 Local ZIP: {zip_match.group(1)}")
-    else:
-        citystate = re.search(r"\b([A-Z][a-z]+,\s?[A-Z]{2})\b", text)
-        if citystate:
-            flags.append(f"🌎 Location: {citystate.group(1)}")
-
-    # Willing to relocate
-    if re.search(r"willing to relocate", text, re.I):
-        flags.append("🚚 Mentions relocation")
-
-    return score, flags
+from resume_utils import score_resume  # ✅ Use the correct scoring logic
 
 
 # === Streamlit UI ===
@@ -87,15 +20,20 @@ if uploaded_file:
 
     st.text_area("Résumé Text", full_text, height=300)
 
+    # Run scoring logic
     result = score_resume(full_text)
 
-    st.write(result)
+    # Debug view (optional, helpful for troubleshooting)
+    st.write("🔍 DEBUG OUTPUT:", result)
+
+    # Display Score Breakdown
     st.markdown(f"## 🧮 Final Score: `{result['Total Score']}`")
     st.markdown("### 📊 Category Breakdown:")
     st.write(f"- **Experience Match**: {result['Experience Match']}")
     st.write(f"- **Welding Process Match**: {result['Welding Process Match']}")
     st.write(f"- **Tools & Fit-Up Match**: {result['Tools & Fit-Up Match']}")
 
+    # Display Flags
     if result["Flags"]:
         st.markdown("### 📌 Flags:")
         for flag in result["Flags"]:
