@@ -1,12 +1,11 @@
-# resume_utils.py
 import fitz  # PyMuPDF
 import re
+from datetime import datetime
 
-# Define welding aliases
 PROCESS_ALIASES = {
     "FCAW": ["fluxcore", "flux-core", "fcaw", "semi-automatic"],
     "GMAW": ["mig", "gmaw", "wire feed", "wire welding"],
-    "SMAW": ["stick", "smaw", "arc welding", "stick welding"],
+    "SMAW": ["stick", "smaw", "arc welding"],
     "GTAW": ["tig", "gtaw"],
 }
 
@@ -40,7 +39,6 @@ CERTS = [
     "3g",
     "certified",
     "welding school",
-    "welding certificate",
     "technical college",
     "weld test",
 ]
@@ -64,9 +62,29 @@ def extract_text_from_pdf(uploaded_file):
     return text.lower()
 
 
+def estimate_experience_from_dates(text):
+    job_lines = [
+        line
+        for line in text.split("\n")
+        if any(w in line for w in ["welder", "fabricator", "welding"])
+    ]
+    years_total = 0
+    now = datetime.now().year
+
+    for line in job_lines:
+        # Match patterns like "2015 - 2020", "2018 to Present", etc.
+        match = re.search(r"(\d{4})\s?[-to]{1,3}\s?(present|\d{4})", line)
+        if match:
+            start = int(match.group(1))
+            end_str = match.group(2)
+            end = now if "present" in end_str.lower() else int(end_str)
+            if 1980 <= start <= now and start <= end:
+                years_total += end - start
+    return years_total
+
+
 def score_resume(text):
     score = 0
-    text_lower = text.lower()
     result = {
         "Experience Match": 0,
         "Welding Process Match": 0,
@@ -81,17 +99,14 @@ def score_resume(text):
         "Flags": [],
     }
 
-    # ✅ FIXED: Experience Match
+    # ✅ 1. Experience Match
     years = 0
-    match = re.search(r"(\d{1,2})\s?[\+]?\s?(?:years|yrs)", text_lower)
+    match = re.search(r"(\d{1,2})\s?[\+]?\s?(?:years|yrs)", text)
     if match:
         years = int(match.group(1))
     else:
-        fallback = re.search(
-            r"(?:over|more than|around)?\s?(\d{1,2})\s?(?:years|yrs)", text_lower
-        )
-        if fallback:
-            years = int(fallback.group(1))
+        years = estimate_experience_from_dates(text)
+
     if years >= 8:
         pts = 20
     elif years >= 5:
@@ -105,55 +120,53 @@ def score_resume(text):
     result["Experience Match"] = pts
     score += pts
 
-    # Welding Process Match
+    # 2. Welding Process Match
+    process_points = 0
     found_processes = set()
     for process, aliases in PROCESS_ALIASES.items():
         for term in aliases:
-            if term in text_lower:
+            if term in text:
                 found_processes.add(process)
                 break
     if "FCAW" in found_processes:
-        result["Welding Process Match"] += 15
+        process_points += 15
     if "GMAW" in found_processes:
-        result["Welding Process Match"] += 10
+        process_points += 10
     if "SMAW" in found_processes:
-        result["Welding Process Match"] += 5
+        process_points += 5
     if "GTAW" in found_processes:
-        result["Welding Process Match"] += 3
-    score += min(result["Welding Process Match"], 30)
+        process_points += 3
+    result["Welding Process Match"] = min(30, process_points)
+    score += result["Welding Process Match"]
 
-    # Material Experience
+    # 3. Material Experience
     for material, pts in MATERIALS.items():
-        if material in text_lower:
+        if material in text:
             result["Material Experience"] += pts
-    if result["Material Experience"] == 0 and any(
-        alias in text_lower for alias in ["jcb", "blue bird", "macaljon", "bendron"]
-    ):
-        result["Material Experience"] += 10
     score += min(result["Material Experience"], 25)
 
-    # Tools & Fit-Up
-    fit_score = sum(pts for term, pts in FIT_UP.items() if term in text_lower)
-    tool_score = min((len([t for t in TOOLS if t in text_lower]) // 2), 5)
+    # 4. Tools & Fit-Up
+    fit_score = sum(pts for term, pts in FIT_UP.items() if term in text)
+    tool_score = min((len([t for t in TOOLS if t in text]) // 2), 5)
     result["Tools & Fit-Up Match"] = min(fit_score + tool_score, 10)
     score += result["Tools & Fit-Up Match"]
 
-    # Safety
+    # 5. Safety
     for term, pts in SAFETY.items():
-        if term.lower() in text_lower:
+        if term in text:
             result["Safety & Inspection"] += pts
-    if "ppe" in text_lower or "hazard" in text_lower:
+    if "ppe" in text or "hazard" in text:
         result["Safety & Inspection"] += 1
     score += min(result["Safety & Inspection"], 5)
 
     # Bonus: Tank Work
-    if any(term in text_lower for term in TANK_KEYWORDS):
+    if any(term in text for term in TANK_KEYWORDS):
         result["Bonus - Tank Work"] = 30
 
     # Bonus: Certifications
     cert_pts = 0
     for cert in CERTS:
-        if cert in text_lower:
+        if cert in text:
             if cert in ["aws", "asme", "api"]:
                 cert_pts += 7
             elif "school" in cert or "college" in cert:
@@ -164,12 +177,12 @@ def score_resume(text):
 
     # Bonus: Local Shop
     for shop, data in LOCAL_SHOPS.items():
-        if any(alias in text_lower for alias in data["aliases"]):
+        if any(alias in text for alias in data["aliases"]):
             result["Bonus - Local Shop"] += data["score"]
             result["Flags"].append(f"🏭 Worked at {shop.title()}")
     result["Bonus - Local Shop"] = min(result["Bonus - Local Shop"], 15)
 
-    # Inference bonus for local shop experience
+    # Inference bonus
     if result["Bonus - Local Shop"] >= 15:
         if result["Tools & Fit-Up Match"] < 5:
             result["Tools & Fit-Up Match"] += 3
@@ -179,10 +192,10 @@ def score_resume(text):
             score += 2
 
     # Bonus: Relocation
-    if "relocat" in text_lower and score >= 50:
+    if "relocat" in text and score >= 50:
         result["Bonus - Relocation"] = 5
 
-    # Final score
+    # Final Score
     result["Total Score"] = min(
         score
         + result["Bonus - Tank Work"]
@@ -193,10 +206,10 @@ def score_resume(text):
     )
 
     # Location flag
-    if any(zip in text_lower for zip in SAVANNAH_ZIPS) or "savannah" in text_lower:
+    if any(zip in text for zip in SAVANNAH_ZIPS) or "savannah" in text:
         result["Flags"].append("📍 Local to Savannah area")
 
-    # Test-readiness verdict
+    # Final recommendation flag
     if result["Total Score"] >= 85:
         result["Flags"].insert(0, "✅ Send to Weld Test")
     elif result["Total Score"] >= 65:
