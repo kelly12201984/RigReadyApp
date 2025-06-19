@@ -2,9 +2,15 @@
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
+from PIL import Image
 
-# Logo and header
-st.image("RigReadyLogo.png", width=120)
+# Load and display logo on the right
+logo = Image.open("RigReadyLogo.png")
+col1, col2 = st.columns([4, 1])
+with col2:
+    st.image(logo, width=120)
+
+# Title and styling
 st.markdown(
     """
 <style>
@@ -20,11 +26,11 @@ st.markdown(
     margin-bottom: 0px;
 }
 .tagline-inline {
-    font-size: 18px;
+    font-size: 22px;
     font-style: italic;
-    color: #aaaaaa;
-    font-weight: 400;
-    margin-left: 8px;
+    font-weight: 600;
+    color: #bbbbbb;
+    margin-left: 12px;
 }
 .subtitle {
     font-size: 18px;
@@ -41,7 +47,7 @@ st.markdown(
 </style>
 <div class="centered-title">
     <div class="app-name-tagline">
-        RIGREADY <span class="tagline-inline">(I cut through more BS than a grinder)</span>
+        RigReady <span class="tagline-inline">I cut through more BS than a grinder.</span>
     </div>
     <div class="subtitle">Welding Résumé Scoring Tool</div>
     <div class="footerline">Built for Savannah Tank • Crafted by Kelly</div>
@@ -122,15 +128,15 @@ if uploaded_files:
     with st.expander("📘 Scoring Guide"):
         st.markdown(
             """
-        - **✅ Send to Weld Test**: 85%+
-        - **⚠️ Promising – Needs Clarification**: 65–84%
-        - **❌ Not Test-Ready**: Under 65%
+- **✅ Send to Weld Test**: 85%+
+- **⚠️ Promising – Needs Clarification**: 65–84%
+- **❌ Not Test-Ready**: Under 65%
 
-        **Scoring Weights**:
-        - Experience, processes, materials, tools, and safety form the base.
-        - Bonus points for tank work, certs, local shop history, or relocation.
-        - Denny-style shop hands get inferred skills boosts when clear.
+**Scoring Weights**:
+- Experience, processes, materials, tools, and safety form the base.
+- Bonus points for tank work, certs, local shop history, or relocation.
+- Denny-style shop hands get inferred skills boosts when clear.
 
-        _“When in doubt, give ‘em the hood.”_
-        """
+_“When in doubt, give ‘em the hood.”_
+"""
         )

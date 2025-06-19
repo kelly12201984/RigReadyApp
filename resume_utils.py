@@ -2,7 +2,7 @@
 import fitz  # PyMuPDF
 import re
 
-# Welding process aliases
+# Define welding aliases
 PROCESS_ALIASES = {
     "FCAW": ["fluxcore", "flux-core", "fcaw", "semi-automatic"],
     "GMAW": ["mig", "gmaw", "wire feed", "wire welding"],
@@ -81,15 +81,31 @@ def score_resume(text):
         "Flags": [],
     }
 
-    # Experience Match
-    match = re.search(r"(\d+)[+ ]*years?", text_lower)
+    # ✅ FIXED: Experience Match
+    years = 0
+    match = re.search(r"(\d{1,2})\s?[\+]?\s?(?:years|yrs)", text_lower)
     if match:
         years = int(match.group(1))
-        pts = 20 if years >= 8 else 15 if years >= 5 else 10 if years >= 3 else 5
-        result["Experience Match"] = pts
-        score += pts
+    else:
+        fallback = re.search(
+            r"(?:over|more than|around)?\s?(\d{1,2})\s?(?:years|yrs)", text_lower
+        )
+        if fallback:
+            years = int(fallback.group(1))
+    if years >= 8:
+        pts = 20
+    elif years >= 5:
+        pts = 15
+    elif years >= 3:
+        pts = 10
+    elif years >= 1:
+        pts = 5
+    else:
+        pts = 0
+    result["Experience Match"] = pts
+    score += pts
 
-    # Process Match
+    # Welding Process Match
     found_processes = set()
     for process, aliases in PROCESS_ALIASES.items():
         for term in aliases:
@@ -130,29 +146,30 @@ def score_resume(text):
         result["Safety & Inspection"] += 1
     score += min(result["Safety & Inspection"], 5)
 
-    # Tank Work
+    # Bonus: Tank Work
     if any(term in text_lower for term in TANK_KEYWORDS):
         result["Bonus - Tank Work"] = 30
 
-    # Certifications
+    # Bonus: Certifications
     cert_pts = 0
     for cert in CERTS:
         if cert in text_lower:
-            cert_pts += (
-                7
-                if cert in ["aws", "asme", "api"]
-                else 5 if "school" in cert or "college" in cert else 3
-            )
+            if cert in ["aws", "asme", "api"]:
+                cert_pts += 7
+            elif "school" in cert or "college" in cert:
+                cert_pts += 5
+            else:
+                cert_pts += 3
     result["Bonus - Certifications"] = min(cert_pts, 10)
 
-    # Local Shops
+    # Bonus: Local Shop
     for shop, data in LOCAL_SHOPS.items():
         if any(alias in text_lower for alias in data["aliases"]):
             result["Bonus - Local Shop"] += data["score"]
             result["Flags"].append(f"🏭 Worked at {shop.title()}")
     result["Bonus - Local Shop"] = min(result["Bonus - Local Shop"], 15)
 
-    # Inference: shop implies skills
+    # Inference bonus for local shop experience
     if result["Bonus - Local Shop"] >= 15:
         if result["Tools & Fit-Up Match"] < 5:
             result["Tools & Fit-Up Match"] += 3
@@ -161,11 +178,11 @@ def score_resume(text):
             result["Safety & Inspection"] += 2
             score += 2
 
-    # Relocation
+    # Bonus: Relocation
     if "relocat" in text_lower and score >= 50:
         result["Bonus - Relocation"] = 5
 
-    # Final Score
+    # Final score
     result["Total Score"] = min(
         score
         + result["Bonus - Tank Work"]
@@ -175,11 +192,11 @@ def score_resume(text):
         100,
     )
 
-    # Flags
+    # Location flag
     if any(zip in text_lower for zip in SAVANNAH_ZIPS) or "savannah" in text_lower:
         result["Flags"].append("📍 Local to Savannah area")
 
-    # Verdict flag (comes first)
+    # Test-readiness verdict
     if result["Total Score"] >= 85:
         result["Flags"].insert(0, "✅ Send to Weld Test")
     elif result["Total Score"] >= 65:
