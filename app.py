@@ -89,6 +89,7 @@ if uploaded_file:
 
     result = score_resume(full_text)
 
+    st.write(result)
     st.markdown(f"## 🧮 Final Score: `{result['Total Score']}`")
     st.markdown("### 📊 Category Breakdown:")
     st.write(f"- **Experience Match**: {result['Experience Match']}")
