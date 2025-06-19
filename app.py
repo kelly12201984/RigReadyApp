@@ -3,8 +3,15 @@
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
+from PIL import Image
 
 # Logo (right aligned)
+logo = Image.open("RigReadyLogo.png")
+col1, col2 = st.columns([6, 1])
+with col2:
+    st.image(logo, width=120)
+
+# Title and tagline
 st.markdown(
     """
 <div style="display: flex; justify-content: flex-end; margin-bottom: -40px;">

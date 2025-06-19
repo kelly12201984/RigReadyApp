@@ -71,22 +71,40 @@ def score_resume(text):
         "Flags": [],
     }
 
-    # 1. Experience Match (robust capture)
-    exp_matches = re.findall(r"(\d+)[+ ]*years?", text)
-    if exp_matches:
-        max_years = max([int(y) for y in exp_matches if y.isdigit()])
-        if max_years >= 8:
-            pts = 20
-        elif max_years >= 5:
-            pts = 15
-        elif max_years >= 3:
-            pts = 10
-        elif max_years >= 1:
-            pts = 5
-        else:
-            pts = 0
-        result["Experience Match"] = pts
-        score += pts
+    from datetime import datetime
+
+    # 1. Experience Match (robust + inferred from date ranges)
+    exp_match = re.search(r"(\d+)\s*(?:\+)?\s*(?:years?|yrs?)", text)
+    if exp_match:
+        years = int(exp_match.group(1))
+    else:
+        # 👇 Fallback: infer years from known job dates (e.g., "2016 to 2022")
+        years_found = re.findall(r"(\d{4})\s*(?:to|-)\s*(\d{4}|present)", text)
+        ranges = []
+        for start, end in years_found:
+            try:
+                start_year = int(start)
+                end_year = datetime.now().year if "present" in end.lower() else int(end)
+                if 1980 < start_year <= end_year:
+                    ranges.append(end_year - start_year)
+            except:
+                continue
+        years = sum(ranges)
+
+    # Now assign points
+    if years >= 8:
+        pts = 20
+    elif years >= 5:
+        pts = 15
+    elif years >= 3:
+        pts = 10
+    elif years >= 1:
+        pts = 5
+    else:
+        pts = 0
+
+    result["Experience Match"] = pts
+    score += pts
 
     # 2. Welding Process Match
     process_points = 0
