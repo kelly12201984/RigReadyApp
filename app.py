@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-from utils import extract_text_from_pdf, score_resume
+from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
 
 st.set_page_config(page_title="RigReady Welding Resume Reviewer", layout="wide")
