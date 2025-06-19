@@ -87,12 +87,15 @@ if uploaded_file:
 
     st.text_area("Résumé Text", full_text, height=300)
 
-    score, notes = score_resume(full_text)
+    result = score_resume(full_text)
 
-    st.markdown(f"### 🔢 Score: `{score}`")
-    if notes:
-        st.markdown("### 📌 Flags & Notes:")
-        for note in notes:
-            st.write(f"- {note}")
-    else:
-        st.write("No additional notes.")
+    st.markdown(f"## 🧮 Final Score: `{result['Total Score']}`")
+    st.markdown("### 📊 Category Breakdown:")
+    st.write(f"- **Experience Match**: {result['Experience Match']}")
+    st.write(f"- **Welding Process Match**: {result['Welding Process Match']}")
+    st.write(f"- **Tools & Fit-Up Match**: {result['Tools & Fit-Up Match']}")
+
+    if result["Flags"]:
+        st.markdown("### 📌 Flags:")
+        for flag in result["Flags"]:
+            st.write(f"- {flag}")
