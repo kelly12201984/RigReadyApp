@@ -1,40 +1,59 @@
+# app.py
 import streamlit as st
-import os
-import fitz  # PyMuPDF
-import re
-from resume_utils import score_resume  # ✅ Use the correct scoring logic
+from utils import extract_text_from_pdf, score_resume
+import pandas as pd
 
+st.set_page_config(page_title="RigReady Welding Resume Reviewer", layout="wide")
+st.title("🧰 RigReady: Welding Resume Reviewer")
+st.markdown("Built for Savannah Tank – Rapid Résumé Insights for Smarter Hiring")
 
-# === Streamlit UI ===
-st.title("🛠️ RigReady: Welding Résumé Reviewer")
-st.write("Upload a PDF résumé to evaluate candidate readiness for Savannah Tank.")
-
-uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+uploaded_file = st.file_uploader("Upload a Résumé (PDF Only)", type="pdf")
 
 if uploaded_file:
-    # Extract text from PDF
-    with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
-        full_text = ""
-        for page in doc:
-            full_text += page.get_text()
+    with st.spinner("Analyzing résumé..."):
+        text = extract_text_from_pdf(uploaded_file)
+        results = score_resume(text)
 
-    st.text_area("Résumé Text", full_text, height=300)
+        st.subheader("🔍 Results Breakdown")
+        st.metric("Total Score", f"{results['Total Score']}%")
 
-    # Run scoring logic
-    result = score_resume(full_text)
+        col1, col2 = st.columns(2)
 
-    # Debug view (optional, helpful for troubleshooting)
-    st.write("🔍 DEBUG OUTPUT:", result)
+        with col1:
+            st.markdown("### Core Categories")
+            st.write("Experience Match:", results["Experience Match"])
+            st.write("Welding Process Match:", results["Welding Process Match"])
+            st.write("Material Experience:", results["Material Experience"])
+            st.write("Tools & Fit-Up Match:", results["Tools & Fit-Up Match"])
+            st.write("Safety & Inspection:", results["Safety & Inspection"])
 
-    # Display Score Breakdown
-    st.markdown(f"## 🧮 Final Score: `{result['Total Score']}`")
-    st.markdown("### 📊 Category Breakdown:")
-    st.write(f"- **Experience Match**: {result['Experience Match']}")
-    st.write(f"- **Welding Process Match**: {result['Welding Process Match']}")
-    st.write(f"- **Tools & Fit-Up Match**: {result['Tools & Fit-Up Match']}")
+        with col2:
+            st.markdown("### Bonus Points")
+            st.write("Tank/Pressure Vessel Work:", results["Bonus - Tank Work"])
+            st.write("Certifications:", results["Bonus - Certifications"])
+            st.write("Local Shop Bonus:", results["Bonus - Local Shop"])
+            st.write("Willing to Relocate:", results["Bonus - Relocation"])
 
-    # Display Flags
-    if result["Flags"]:
-        st.markdown("### 📌 Flags:")
-        for flag in result["Flags"]:
-            st.write(f"- {flag}")
+            if results["Flags"]:
+                st.markdown("### 🚩 Flags")
+                for flag in results["Flags"]:
+                    st.write(flag)
+
+        # Display raw scorecard as a dataframe
+        with st.expander("View Full Scorecard"):
+            display_dict = results.copy()
+            del display_dict["Flags"]  # omit from table, shown above
+            st.dataframe(
+                pd.DataFrame.from_dict(display_dict, orient="index", columns=["Score"])
+            )
+
+        # Optional: Visual status label
+        st.markdown("### 🔧 Summary Recommendation")
+        if results["Total Score"] >= 90:
+            st.success("🔥 Test Immediately")
+        elif results["Total Score"] >= 70:
+            st.info("✅ Promising – Needs Clarification")
+        elif results["Total Score"] >= 50:
+            st.warning("⚠️ Entry-Level or Unclear")
+        else:
+            st.error("❌ Not Qualified")
