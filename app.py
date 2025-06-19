@@ -1,16 +1,20 @@
 # app.py
+
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
-from PIL import Image
 
-# Load and display logo on the right
-logo = Image.open("RigReadyLogo.png")
-col1, col2 = st.columns([4, 1])
-with col2:
-    st.image(logo, width=120)
+# Logo (right aligned)
+st.markdown(
+    """
+<div style="display: flex; justify-content: flex-end; margin-bottom: -40px;">
+    <img src='RigReadyLogo.png' width='160'>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-# Title and styling
+# Title and tagline
 st.markdown(
     """
 <style>
@@ -26,11 +30,11 @@ st.markdown(
     margin-bottom: 0px;
 }
 .tagline-inline {
-    font-size: 22px;
+    font-size: 20px;
     font-style: italic;
-    font-weight: 600;
-    color: #bbbbbb;
-    margin-left: 12px;
+    color: #aaaaaa;
+    font-weight: 500;
+    margin-left: 10px;
 }
 .subtitle {
     font-size: 18px;
@@ -45,6 +49,7 @@ st.markdown(
     margin-top: -8px;
 }
 </style>
+
 <div class="centered-title">
     <div class="app-name-tagline">
         RigReady <span class="tagline-inline">I cut through more BS than a grinder.</span>
@@ -56,7 +61,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Upload section
+# Upload input
 uploaded_files = st.file_uploader(
     "Upload Résumés (PDFs)", type="pdf", accept_multiple_files=True
 )
@@ -132,11 +137,9 @@ if uploaded_files:
 - **⚠️ Promising – Needs Clarification**: 65–84%
 - **❌ Not Test-Ready**: Under 65%
 
-**Scoring Weights**:
-- Experience, processes, materials, tools, and safety form the base.
-- Bonus points for tank work, certs, local shop history, or relocation.
-- Denny-style shop hands get inferred skills boosts when clear.
-
-_“When in doubt, give ‘em the hood.”_
-"""
+**Scoring Logic**:
+- Experience, processes, materials, tools, and safety form the base score.
+- Bonus points are awarded for tank work, certifications, local welding shop experience, and relocation willingness.
+- Working at trusted Savannah-area shops (like Macaljon, Griffin, Coastal Welding) boosts assumed practical skills.
+        """
         )
