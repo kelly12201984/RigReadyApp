@@ -73,11 +73,11 @@ def extract_verdict(results):
     exp = results["Experience Match"]
     tank = results["Bonus - Tank Work"]
 
-    if score >= 85 or tank == 30:
+    if score >= 85:
         return "✅ Send to Weld Test"
-    elif exp >= 10 and 60 <= score < 85:
+    elif exp >= 10 and score < 65:
         return "🔍 Trust but Verify"
-    elif score >= 65:
+    elif 65 <= score < 85:
         return "⚠️ Promising – Needs Clarification"
     else:
         return "❌ Not Test-Ready"

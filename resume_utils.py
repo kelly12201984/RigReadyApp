@@ -1,26 +1,9 @@
 import fitz  # PyMuPDF
 import re
+import difflib
 from datetime import datetime
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
-
-
-def score_resume(text):
-    score = 0
-    result = {
-        "Experience Match": 0,
-        "Welding Process Match": 0,
-        "Material Experience": 0,
-        "Tools & Fit-Up Match": 0,
-        "Safety & Inspection": 0,
-        "Bonus - Tank Work": 0,
-        "Bonus - Certifications": 0,
-        "Bonus - Local Shop": 0,
-        "Bonus - Relocation": 0,
-        "Total Score": 0,
-        "Flags": [],
-    }
-
 
 # 🧠 Welding-related keywords for context fallback
 WELDING_KEYWORDS = [
@@ -41,7 +24,6 @@ WELDING_KEYWORDS = [
     "smaw",
     "gtaw",
 ]
-
 # 🛠️ Welding process aliases and welding position terms
 PROCESS_ALIASES = {
     "FCAW": ["fluxcore", "flux-core", "fcaw", "semi-automatic"],
@@ -157,44 +139,25 @@ def extract_years_from_contextual_date_ranges(text):
     date_pattern = r"(?:\d{1,2}[/-])?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*[ -/]*(20\d{2})"
     matches = re.finditer(rf"({date_pattern})\s*[-–to]+\s*({date_pattern})", normalized)
 
-    WELDING_KEYWORDS = [
-        "welder",
-        "welding",
-        "fabrication",
-        "fabricator",
-        "fitter",
-        "fluxcore",
-        "fcaw",
-        "mig",
-        "gmaw",
-        "smaw",
-        "tig",
-        "gtaw",
-        "blueprint",
-        "metal",
-        "pipe",
-        "grind",
-        "torch",
-        "layout",
-    ]
-
     for match in matches:
         start_str, end_str = match.group(1), match.group(2)
         start_date = parse_flexible_date(start_str)
         end_date = parse_flexible_date(end_str)
 
-        if start_date and end_date and start_date < end_date:
-            span_start = max(0, match.start() - 100)
-            span_end = min(len(text), match.end() + 100)
-            context = text[span_start:span_end]
-            if any(kw in context for kw in WELDING_KEYWORDS):
-                delta = (end_date - start_date).days / 365
-                total_years += min(delta, max_cap - total_years)
+    if start_date and end_date and start_date < end_date:
+        span_start = max(0, match.start() - 100)
+        span_end = min(len(text), match.end() + 100)
+        context = text[span_start:span_end]
+        if any(kw in context for kw in WELDING_KEYWORDS):
+            delta = (end_date - start_date).days / 365
+            total_years += min(delta, max_cap - total_years)
 
     return "20+" if total_years > max_cap else str(round(total_years))
 
 
+# -----------------------------------------------------
 # 🧩 Experience Years Wrapper
+# -----------------------------------------------------
 def extract_experience_years(text):
     match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
     if match:
@@ -202,7 +165,29 @@ def extract_experience_years(text):
     else:
         return extract_years_from_contextual_date_ranges(text)
 
-    # 🔹 1. Experience Match
+
+# -----------------------------------------------------
+# 🧮 Main Resume Scoring Logic
+# -----------------------------------------------------
+def score_resume(text):
+    score = 0
+    result = {
+        "Experience Match": 0,
+        "Welding Process Match": 0,
+        "Material Experience": 0,
+        "Tools & Fit-Up Match": 0,
+        "Safety & Inspection": 0,
+        "Bonus - Tank Work": 0,
+        "Bonus - Certifications": 0,
+        "Bonus - Local Shop": 0,
+        "Bonus - Relocation": 0,
+        "Total Score": 0,
+        "Flags": [],
+    }
+    # -----------------------------------------------------
+    # 🔹 1. Experience Match (inside score_resume)
+    # -----------------------------------------------------
+
     years_text = extract_experience_years(text)
     years = 0
     try:
