@@ -75,8 +75,8 @@ def extract_verdict(results):
 
     if score >= 85:
         return "✅ Send to Weld Test"
-    elif exp >= 10 and score < 65:
-        return "🔍 Trust but Verify"
+    elif exp >= 10 and 60 <= score < 85:
+        return "🔍 TBV: Confirm Type of Experience"
     elif 65 <= score < 85:
         return "⚠️ Promising – Needs Clarification"
     else:
