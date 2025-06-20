@@ -4,6 +4,24 @@ from datetime import datetime
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
+
+def score_resume(text):
+    score = 0
+    result = {
+        "Experience Match": 0,
+        "Welding Process Match": 0,
+        "Material Experience": 0,
+        "Tools & Fit-Up Match": 0,
+        "Safety & Inspection": 0,
+        "Bonus - Tank Work": 0,
+        "Bonus - Certifications": 0,
+        "Bonus - Local Shop": 0,
+        "Bonus - Relocation": 0,
+        "Total Score": 0,
+        "Flags": [],
+    }
+
+
 # 🧠 Welding-related keywords for context fallback
 WELDING_KEYWORDS = [
     "weld",
