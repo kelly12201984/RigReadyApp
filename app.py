@@ -5,6 +5,24 @@ from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
 from PIL import Image
 
+
+# Verdict logic — updated for 10+ years fallback
+def extract_verdict(results):
+    flags = results["Flags"]
+    score = results["Total Score"]
+    experience = results["Experience Match"]
+    local_shop = results["Bonus - Local Shop"]
+
+    if score >= 85:
+        return "✅ Test"
+    elif score >= 65:
+        return "⚠️ Clarify"
+    elif experience >= 10 and local_shop > 0:
+        return "🕵️ Trust but Verify"
+    else:
+        return "❌ No"
+
+
 # Logo (right aligned)
 logo = Image.open("RigReadyLogo.png")
 col1, col2 = st.columns([6, 1])
@@ -75,11 +93,12 @@ uploaded_files = st.file_uploader(
 
 
 def extract_verdict(flags):
-    if any("Send to Weld Test" in f for f in flags):
-        return "✅ Test"
-    if any("Promising" in f for f in flags):
-        return "⚠️ Clarify"
-    return "❌ No"
+    for flag in flags:
+        if "Send to Weld Test" in flag:
+            return "✅ Test"
+        elif "Promising" in flag:
+            return "⚠️ Clarify"
+    return "❌ That's gonna be a No for me"
 
 
 if uploaded_files:

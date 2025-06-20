@@ -1,7 +1,7 @@
 # resume_utils.py
-
 import fitz  # PyMuPDF
 import re
+import difflib
 
 # Define welding process aliases
 PROCESS_ALIASES = {
@@ -32,16 +32,16 @@ LOCAL_SHOPS = {
     "macaljon": 15,
     "coastal welding": 12,
     "griffin contracting": 8,
-    "jcb": 5,
-    "big john trailers": 5,
+    "jcb": 10,
+    "big john trailers": 10,
 }
 
 TANK_KEYWORDS = [
     "pressure vessel",
     "vessel",
     "tank fabrication",
-    "API 650",
-    "ASME Section VIII",
+    "api 650",
+    "asme section viii",
 ]
 
 CERTS = ["aws", "asme", "api", "6g", "3g", "certified", "welding school", "weld test"]
@@ -53,6 +53,29 @@ def extract_text_from_pdf(uploaded_file):
     text = "\n".join(page.get_text() for page in doc)
     doc.close()
     return text.lower()
+
+
+def extract_years_from_date_ranges(text):
+    """Rough fallback: count distinct date pairs like 2010–2015 or 2018 to 2022"""
+    year_spans = re.findall(r"(20\d{2})\D{0,5}(20\d{2})", text)
+    total_years = 0
+    for y1, y2 in year_spans:
+        try:
+            diff = int(y2) - int(y1)
+            if 0 < diff <= 40:
+                total_years += diff
+        except:
+            continue
+    return total_years
+
+
+def fuzzy_match_local_shop(text):
+    shop_hits = []
+    for shop, pts in LOCAL_SHOPS.items():
+        matches = difflib.get_close_matches(shop, text.split(), cutoff=0.8)
+        if matches:
+            shop_hits.append((shop, pts))
+    return shop_hits
 
 
 def score_resume(text):
@@ -71,40 +94,30 @@ def score_resume(text):
         "Flags": [],
     }
 
-    from datetime import datetime
+    # 1. Experience Match
+    match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
+    years = None
 
-    # 1. Experience Match (robust + inferred from date ranges)
-    exp_match = re.search(r"(\d+)\s*(?:\+)?\s*(?:years?|yrs?)", text)
-    if exp_match:
-        years = int(exp_match.group(1))
+    if match:
+        years = int(match.group(1))
     else:
-        # 👇 Fallback: infer years from known job dates (e.g., "2016 to 2022")
-        years_found = re.findall(r"(\d{4})\s*(?:to|-)\s*(\d{4}|present)", text)
-        ranges = []
-        for start, end in years_found:
-            try:
-                start_year = int(start)
-                end_year = datetime.now().year if "present" in end.lower() else int(end)
-                if 1980 < start_year <= end_year:
-                    ranges.append(end_year - start_year)
-            except:
-                continue
-        years = sum(ranges)
+        fallback_years = extract_years_from_date_ranges(text)
+        if fallback_years >= 1:
+            years = fallback_years
 
-    # Now assign points
-    if years >= 8:
-        pts = 20
-    elif years >= 5:
-        pts = 15
-    elif years >= 3:
-        pts = 10
-    elif years >= 1:
-        pts = 5
-    else:
-        pts = 0
-
-    result["Experience Match"] = pts
-    score += pts
+    if years is not None:
+        if years >= 10:
+            pts = 20
+        elif years >= 8:
+            pts = 15
+        elif years >= 5:
+            pts = 10
+        elif years >= 2:
+            pts = 5
+        else:
+            pts = 0
+        result["Experience Match"] = pts
+        score += pts
 
     # 2. Welding Process Match
     process_points = 0
@@ -114,7 +127,6 @@ def score_resume(text):
             if term in text:
                 found_processes.add(process)
                 break
-
     if "FCAW" in found_processes:
         process_points += 15
     if "GMAW" in found_processes:
@@ -133,16 +145,15 @@ def score_resume(text):
             result["Material Experience"] += pts
     score += min(result["Material Experience"], 25)
 
-    # 4. Tools & Fit-Up Match
+    # 4. Fit-Up & Tools
     for term, pts in FIT_UP.items():
         if term in text:
             result["Tools & Fit-Up Match"] += pts
-
     tool_hits = len([t for t in TOOLS if t in text])
     result["Tools & Fit-Up Match"] += min((tool_hits // 2), 5)
     score += min(result["Tools & Fit-Up Match"], 10)
 
-    # 5. Safety & Inspection
+    # 5. Safety
     for term, pts in SAFETY.items():
         if term in text:
             result["Safety & Inspection"] += pts
@@ -158,35 +169,25 @@ def score_resume(text):
         if cert in text:
             if cert in ["aws", "asme", "api"]:
                 cert_pts += 7
-            elif cert == "welding school":
+            elif cert in ["welding school"]:
                 cert_pts += 5
-            else:
+            elif cert in ["6g", "3g", "weld test", "certified"]:
                 cert_pts += 3
     result["Bonus - Certifications"] = min(cert_pts, 10)
 
-    # Bonus: Local Shop (accumulate multiple matches + inference boosts)
-    local_hit = False
-    for shop, pts in LOCAL_SHOPS.items():
-        if shop in text:
-            result["Bonus - Local Shop"] += pts
+    # Bonus: Local Shop
+    matched_shops = fuzzy_match_local_shop(text)
+    if matched_shops:
+        total_bonus = sum(pts for _, pts in matched_shops)
+        result["Bonus - Local Shop"] = min(total_bonus, 15)
+        for shop, _ in matched_shops:
             result["Flags"].append(f"🏭 Worked at {shop.title()}")
-            local_hit = True
-
-    result["Bonus - Local Shop"] = min(result["Bonus - Local Shop"], 15)
-
-    # Inference boost from local shop if tools/safety weak
-    if local_hit:
-        if result["Tools & Fit-Up Match"] < 4:
-            result["Tools & Fit-Up Match"] += 3
-            score += 3
-        if result["Safety & Inspection"] < 2:
-            result["Safety & Inspection"] += 2
-            score += 2
 
     # Bonus: Relocation
     if "relocat" in text and score >= 50:
         result["Bonus - Relocation"] = 5
 
+    # Final Score
     result["Total Score"] = (
         score
         + result["Bonus - Tank Work"]
@@ -195,16 +196,16 @@ def score_resume(text):
         + result["Bonus - Relocation"]
     )
 
-    # Verdict Flag (goes first)
+    # Flags
+    if any(zip.startswith(text[-5:]) for zip in SAVANNAH_ZIPS) or "savannah" in text:
+        result["Flags"].append("📍 Local to Savannah area")
     if result["Total Score"] >= 85:
         result["Flags"].insert(0, "✅ Send to Weld Test")
     elif result["Total Score"] >= 65:
         result["Flags"].insert(0, "⚠️ Promising – Needs Clarification")
+    elif result["Experience Match"] >= 10 and result["Bonus - Local Shop"] > 0:
+        result["Flags"].insert(0, "🕵️ Trust but Verify")
     else:
         result["Flags"].insert(0, "❌ Not Test-Ready")
-
-    # Location Flag
-    if any(zipcode in text for zipcode in SAVANNAH_ZIPS) or "savannah" in text:
-        result["Flags"].append("📍 Local to Savannah area")
 
     return result
