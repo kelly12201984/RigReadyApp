@@ -185,7 +185,7 @@ def score_resume(text):
     result["Bonus - Local Shop"] = local_bonus
     score += local_bonus
 
-    result["Bonus - Willing to Relocate"] = 5 if "relocate" in text else 0
+    result["Bonus - Relocation"] = 5 if "relocate" in text else 0
     score += result["Bonus - Willing to Relocate"]
 
     # ------------------ Final Output ------------------
