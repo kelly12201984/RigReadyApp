@@ -1,122 +1,133 @@
-import fitz  # PyMuPDF
 import re
-import difflib
+import fitz  # PyMuPDF
 from datetime import datetime
 
 
-# ------------------------------
-# PDF TEXT EXTRACTION
-# ------------------------------
+# --------------------- PDF Text Extraction ---------------------
 def extract_text_from_pdf(uploaded_file):
     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
     text = "\n".join(page.get_text() for page in doc)
     doc.close()
-    text = text.replace("/", " ")  # Normalize slashes
-    return text.lower()
+    # Normalize slashes and lowercase
+    return text.replace("/", " ").lower()
 
 
-# ------------------------------
-# HELPER: CONTEXTUAL DATE RANGE EXPERIENCE
-# ------------------------------
-def extract_years_from_contextual_date_ranges(text):
-    date_patterns = re.findall(
-        r"([a-z]{3,9} \d{4}|[0-1]?\d/[0-9]{4}|20\d{2})", text, re.IGNORECASE
-    )
-    date_objects = []
-    for date_str in date_patterns:
-        parsed = parse_flexible_date(date_str)
-        if parsed:
-            date_objects.append(parsed)
-
-    # Group into pairs (start, end)
-    total_months = 0
-    for i in range(len(date_objects) - 1):
-        start_date = date_objects[i]
-        end_date = date_objects[i + 1]
-
-        context_window = text[
-            max(0, text.find(date_str) - 100) : text.find(date_str) + 100
-        ]
-        if any(
-            kw in context_window
-            for kw in ["welder", "welding", "fabrication", "fitter"]
-        ):
-            if start_date is not None and end_date is not None:
-                if start_date < end_date:
-                    months = (end_date.year - start_date.year) * 12 + (
-                        end_date.month - start_date.month
-                    )
-                    total_months += months
-
-    years = round(total_months / 12)
-    return min(years, 20)
-
-
-def parse_flexible_date(date_str):
-    for fmt in ("%b %Y", "%B %Y", "%m/%Y", "%Y"):
+# --------------------- Date Parsing Helper ---------------------
+def parse_date(text):
+    """Parses month-year or year-only formats."""
+    text = text.strip().lower()
+    for fmt in ("%B %Y", "%b %Y", "%m %Y", "%Y"):
         try:
-            return datetime.strptime(date_str, fmt)
-        except:
+            return datetime.strptime(text, fmt)
+        except ValueError:
             continue
     return None
 
 
-# ------------------------------
-# EXPERIENCE WRAPPER FUNCTION
-# ------------------------------
-def extract_experience_years(text):
-    # First try keyword method
-    match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
-    if match:
-        return int(match.group(1))
+# --------------------- Contextual Experience Fallback ---------------------
+def extract_years_from_contextual_date_ranges(text):
+    lines = text.split("\n")
+    total_years = 0
+    welding_keywords = ["weld", "fabrication", "fitter", "welder", "welding"]
+    date_pattern = re.compile(
+        r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?\.?\s*\d{4}"
+    )
 
-    # Else, fallback to contextual date scanning
-    fallback = extract_years_from_contextual_date_ranges(text)
-    return fallback if fallback else 0
+    for i, line in enumerate(lines):
+        if not date_pattern.search(line):
+            continue
+
+        # Look up to 3 lines above for a welding job title
+        context_block = " ".join(lines[max(0, i - 3) : i + 1])
+        if not any(kw in context_block for kw in welding_keywords):
+            continue
+
+        # Look for date pairs in the block
+        date_matches = re.findall(
+            r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?\.?\s*\d{4})\s*(?:to|–|-)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?\.?\s*\d{4}|present|current)",
+            context_block,
+        )
+
+        for start_text, end_text in date_matches:
+            start_date = parse_date(start_text)
+            if "present" in end_text or "current" in end_text:
+                end_date = datetime.today()
+            else:
+                end_date = parse_date(end_text)
+
+            if start_date and end_date and start_date < end_date:
+                delta = end_date.year - start_date.year
+                if delta > 0 and delta <= 40:
+                    total_years += delta
+
+    return min(total_years, 20)
 
 
-# ------------------------------
-# SCORING LOGIC
-# ------------------------------
+# --------------------- Resume Scoring ---------------------
 def score_resume(text):
+    result = {}
     score = 0
-    result = {
-        "Experience Match": 0,
-        "Welding Process Match": 0,
-        "Material Experience": 0,
-        "Tools & Fit-Up Match": 0,
-        "Safety & Inspection": 0,
-        "Bonus - Tank Work": 0,
-        "Bonus - Certifications": 0,
-        "Bonus - Local Shop": 0,
-        "Bonus - Relocation": 0,
-        "Flags": [],
-    }
 
-    # PROCESS ALIASES
+    # ---- Normalize Text ----
+    text = text.replace("/", " ").lower()
+
+    # ------------------ 1. Experience Match ------------------
+    match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
+    years = None
+
+    if match:
+        years = int(match.group(1))
+    else:
+        fallback_years = extract_years_from_contextual_date_ranges(text)
+        if fallback_years >= 1:
+            years = fallback_years
+
+    if years is not None:
+        if years >= 20:
+            pts = 20
+        elif years >= 15:
+            pts = 15
+        elif years >= 10:
+            pts = 10
+        elif years >= 5:
+            pts = 5
+        else:
+            pts = 2
+        result["Experience Match"] = pts
+        score += pts
+    else:
+        result["Experience Match"] = 0
+
+    # ------------------ 2. Welding Process Match ------------------
     PROCESS_ALIASES = {
         "FCAW": ["fluxcore", "flux-core", "fcaw", "semi-automatic"],
         "GMAW": ["mig", "gmaw", "wire feed", "wire welding"],
-        "SMAW": ["stick", "smaw", "arc", "arc welding"],
+        "SMAW": ["stick", "smaw", "arc welding", "arc"],
         "GTAW": ["tig", "gtaw"],
     }
-
-    # WELDING POSITIONS
-    POSITION_KEYWORDS = [
+    positions = [
         "overhead",
         "vertical",
         "horizontal",
         "multiple positions",
         "various positions",
-        "1g",
-        "2g",
-        "3g",
-        "4g",
-        "5g",
-        "6g",
     ]
+    total = 0
+    for group in PROCESS_ALIASES.values():
+        if any(term in text for term in group):
+            total += 10
+    if any(p in text for p in positions):
+        total += 5
+    result["Welding Process Match"] = total
+    score += total
 
-    # TOOLS
+    # ------------------ 3. Material Experience ------------------
+    MATERIALS = {"stainless": 10, "carbon": 10, "steel": 5, "aluminum": 2}
+    mat_score = sum(pts for mat, pts in MATERIALS.items() if mat in text)
+    result["Material Experience"] = mat_score
+    score += mat_score
+
+    # ------------------ 4. Tools & Fit-Up Match ------------------
     TOOLS = [
         "grinder",
         "torch",
@@ -131,141 +142,52 @@ def score_resume(text):
         "precision",
         "welding",
     ]
+    FIT_UP = {"blueprint": 5}
+    tool_score = sum(1 for tool in TOOLS if tool in text)
+    fitup_score = sum(pts for key, pts in FIT_UP.items() if key in text)
+    result["Tools & Fit-Up Match"] = tool_score + fitup_score
+    score += tool_score + fitup_score
 
-    # FIT UP
-    FIT_UP = {
-        "blueprint": 5,
-        "tape measure": 0,  # muted
-    }
-
-    # SAFETY
+    # ------------------ 5. Safety & Inspection ------------------
     SAFETY = {"osha": 3, "code": 3, "quality": 1, "inspection": 1}
+    safe_score = sum(pts for key, pts in SAFETY.items() if key in text)
+    result["Safety & Inspection"] = safe_score
+    score += safe_score
 
-    # MATERIALS
-    MATERIALS = {
-        "stainless": 10,
-        "carbon": 10,
-        "steel": 5,
-        "aluminum": 2,
-    }
-
-    # LOCAL SHOPS (w/ fuzzy)
-    LOCAL_SHOPS = {
+    # ------------------ 🔧 Bonus Scoring ------------------
+    tank_keywords = ["pressure vessel", "tank"]
+    cert_keywords = ["aws", "welding cert", "certified welder"]
+    local_shops = {
         "macaljon": 15,
         "coastal welding": 12,
         "griffin contracting": 8,
         "jcb": 10,
         "big john trailers": 10,
-        "gulfstream": 10,
+        "gulfstream": 12,
     }
 
-    # CERTIFICATIONS
-    CERTS = [
-        "aws",
-        "d1.1",
-        "certified welder",
-        "welding certificate",
-        "welding cert",
-        "technical college",
-        "welding school",
-    ]
+    result["Bonus - Tank Work"] = 5 if any(t in text for t in tank_keywords) else 0
+    score += result["Bonus - Tank Work"]
 
-    # TANK WORK
-    TANK_KEYWORDS = [
-        "pressure vessel",
-        "tank fabrication",
-        "asme",
-        "section viii",
-        "savannah tank",
-    ]
+    cert_score = 0
+    for kw in cert_keywords:
+        if kw in text:
+            cert_score = 10
+            break
+    result["Bonus - Certifications"] = cert_score
+    score += cert_score
 
-    # RELOCATION
-    if "willing to relocate" in text:
-        result["Bonus - Relocation"] = 5
+    local_bonus = 0
+    for shop, pts in local_shops.items():
+        if shop in text:
+            local_bonus = pts
+            break
+    result["Bonus - Local Shop Bonus"] = local_bonus
+    score += local_bonus
 
-    # ------------------------
-    # SCORING BEGINS
-    # ------------------------
+    result["Bonus - Willing to Relocate"] = 5 if "relocate" in text else 0
+    score += result["Bonus - Willing to Relocate"]
 
-    # 1. Experience
-    years_text = extract_experience_years(text)
-    if years_text >= 15:
-        pts = 20
-    elif years_text >= 10:
-        pts = 15
-    elif years_text >= 5:
-        pts = 10
-    elif years_text >= 2:
-        pts = 5
-    else:
-        pts = 0
-    result["Experience Match"] = pts
-    score += pts
-
-    # 2. Welding Process Match (including position terms)
-    found = []
-    for alias_list in PROCESS_ALIASES.values():
-        for kw in alias_list:
-            if kw in text:
-                found.append(kw)
-    for pos in POSITION_KEYWORDS:
-        if pos in text:
-            found.append(pos)
-
-    proc_pts = min(len(set(found)) * 5, 30)
-    result["Welding Process Match"] = proc_pts
-    score += proc_pts
-
-    # 3. Material Experience
-    mat_pts = 0
-    for mat in MATERIALS:
-        if mat in text:
-            mat_pts += MATERIALS[mat]
-    result["Material Experience"] = mat_pts
-    score += mat_pts
-
-    # 4. Tools & Fit-Up Match
-    tool_score = sum(5 for tool in TOOLS if tool in text)
-    fit_score = sum(FIT_UP[key] for key in FIT_UP if key in text)
-    result["Tools & Fit-Up Match"] = min(tool_score + fit_score, 10)
-    score += result["Tools & Fit-Up Match"]
-
-    # 5. Safety & Inspection
-    safety_score = sum(SAFETY[key] for key in SAFETY if key in text)
-    result["Safety & Inspection"] = min(safety_score, 5)
-    score += result["Safety & Inspection"]
-
-    # Bonuses — Tank
-    tank_pts = sum(10 for kw in TANK_KEYWORDS if kw in text)
-    result["Bonus - Tank Work"] = min(tank_pts, 30)
-
-    # Bonus — Certs
-    result["Bonus - Certifications"] = sum(5 for cert in CERTS if cert in text)
-
-    # Bonus — Local Shop Fuzzy Match
-    for shop in LOCAL_SHOPS:
-        matches = difflib.get_close_matches(shop, text.split(), cutoff=0.8)
-        if matches:
-            result["Bonus - Local Shop"] += LOCAL_SHOPS[shop]
-    result["Bonus - Local Shop"] = min(result["Bonus - Local Shop"], 15)
-
-    # Cap total score at 100
-    result["Total Score"] = (
-        min(score, 100)
-        + result["Bonus - Tank Work"]
-        + result["Bonus - Certifications"]
-        + result["Bonus - Local Shop"]
-        + result["Bonus - Relocation"]
-    )
-
-    # Add Flags
-    if result["Total Score"] >= 85:
-        result["Flags"].append("✅ Send to Weld Test")
-    elif result["Experience Match"] >= 15 and 60 <= result["Total Score"] < 85:
-        result["Flags"].append("🔍 TBV: Confirm Type of Experience")
-    elif result["Total Score"] >= 65:
-        result["Flags"].append("⚠️ Promising – Needs Clarification")
-    else:
-        result["Flags"].append("❌ Not Test-Ready")
-
+    # ------------------ Final Output ------------------
+    result["Total Score"] = min(score, 100)
     return result

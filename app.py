@@ -1,28 +1,24 @@
 import streamlit as st
-from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
+from resume_utils import extract_text_from_pdf, score_resume
 
-# ----------------- 🔧 Custom Styling & Logo ------------------
-st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide")
-
-# Logo (right-aligned)
+# ------------------ 🎨 Logo + Header ---------------------
 st.markdown(
     """
-<div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
+<div style="display: flex; justify-content: flex-end; margin-bottom: -40px;">
     <img src='RigReadyLogo.png' width='160'>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Title, Tagline, Subtitle
 st.markdown(
     """
 <style>
 .centered-title {
     text-align: center;
     font-family: 'Oswald', sans-serif;
-    margin-top: -10px;
+    margin-top: -20px;
 }
 .app-name-tagline {
     font-size: 36px;
@@ -31,10 +27,10 @@ st.markdown(
     margin-bottom: 0px;
 }
 .tagline-inline {
-    font-size: 20px;
+    font-size: 18px;
     font-style: italic;
     color: #aaaaaa;
-    font-weight: 500;
+    font-weight: 600;
     margin-left: 8px;
 }
 .subtitle {
@@ -61,7 +57,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ------------------ 📤 Upload Section ---------------------
+# ------------------ 📤 File Upload ---------------------
 uploaded_files = st.file_uploader(
     "Upload Résumés (PDFs)", type="pdf", accept_multiple_files=True
 )
@@ -75,15 +71,15 @@ def extract_verdict(results):
 
     if score >= 85:
         return "✅ Send to Weld Test"
-    elif exp >= 10 and 60 <= score < 85:
-        return "🔍 TBV: Confirm Type of Experience"
+    elif exp >= 10 and score < 65:
+        return "🔍 Trust but Verify"
     elif 65 <= score < 85:
         return "⚠️ Promising – Needs Clarification"
     else:
         return "❌ Not Test-Ready"
 
 
-# ------------------ 📊 Process Uploaded Resumes ---------------------
+# ------------------ 🧮 Resume Processing ---------------------
 if uploaded_files:
     score_list = []
 
@@ -94,8 +90,8 @@ if uploaded_files:
             verdict = extract_verdict(results)
             score_list.append((file.name, results, verdict))
 
-    # Summary Table
     st.subheader("📊 Summary Table")
+
     table_data = []
     for name, results, verdict in score_list:
         table_data.append(
@@ -118,14 +114,24 @@ if uploaded_files:
     df = pd.DataFrame(table_data).sort_values("Score", ascending=False)
     st.dataframe(df.reset_index(drop=True), use_container_width=True)
 
-    # Individual Breakdown
+    # ------------------ 📂 Detailed Breakdown ---------------------
     for name, results, _ in score_list:
         with st.expander(f"📄 {name} – Detailed Breakdown"):
-            st.metric("Total Score", f"{results['Total Score']}%")
+            score_display = f"{results['Total Score']}%"
+            if results["Total Score"] > 100:
+                score_display += " 🔥"
+            st.metric("Total Score", score_display)
+
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("### Core Categories")
                 st.write("Experience Match:", results["Experience Match"])
+                if "Experience Years" in results:
+                    st.write(
+                        "Estimated Welding Experience:",
+                        results["Experience Years"],
+                        "years",
+                    )
                 st.write("Welding Process Match:", results["Welding Process Match"])
                 st.write("Material Experience:", results["Material Experience"])
                 st.write("Tools & Fit-Up Match:", results["Tools & Fit-Up Match"])
@@ -145,16 +151,16 @@ if uploaded_files:
     with st.expander("📘 Scoring Guide"):
         st.markdown(
             """
-- **✅ Send to Weld Test**: Score ≥ 85% or direct tank experience
-- **🔍 Trust but Verify**: 60–84% + strong experience (10+ yrs)
-- **⚠️ Promising – Needs Clarification**: Score ≥ 65%
-- **❌ Not Test-Ready**: Score < 65%
+- **✅ Send to Weld Test**: 85%+
+- **🔍 Trust but Verify**: 10+ years welding experience but weak score
+- **⚠️ Promising – Needs Clarification**: 65–84%
+- **❌ Not Test-Ready**: Under 65%
 
 **Scoring Breakdown**:
-- Core: Experience, process, materials, tools, safety (Max 100)
-- Bonus: Tank work, certs, local shop, relocation (Max +30)
-- Cap: Final score capped at 100 before bonus
+- Core: experience, processes, materials, tools, safety
+- Bonus: tank work, certifications, local shop names, relocation
+- Welding position terms (e.g., 6G, overhead) enhance process match
 
-_“Weld-ready or walk — we grind through the fluff so you don’t have to.”_
+“RigReady doesn't guess — it grinds.”
 """
         )
