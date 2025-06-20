@@ -182,7 +182,7 @@ def score_resume(text):
         if shop in text:
             local_bonus = pts
             break
-    result["Bonus - Local Shop Bonus"] = local_bonus
+    result["Bonus - Local Shop"] = local_bonus
     score += local_bonus
 
     result["Bonus - Willing to Relocate"] = 5 if "relocate" in text else 0
