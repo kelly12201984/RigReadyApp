@@ -1,5 +1,6 @@
 streamlit
 pandas
-pymupdf # For PyMuPDF (fitz)
+PyMuPDF # For PyMuPDF (fitz)
 Pillow  # For image/logo display
+python-dateutil  #parser and relativedelta
 

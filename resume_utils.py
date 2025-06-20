@@ -1,6 +1,8 @@
 import fitz  # PyMuPDF
 import re
 from datetime import datetime
+from dateutil import parser
+from dateutil.relativedelta import relativedelta
 
 # 🧠 Welding-related keywords for context fallback
 WELDING_KEYWORDS = [
@@ -61,7 +63,7 @@ TOOLS = [
 FIT_UP = {"blueprint": 5}
 
 # 🔒 Safety knowledge
-SAFETY = {"OSHA": 3, "code": 3, "quality": 1, "inspection": 1}
+SAFETY = {"osha": 3, "code": 3, "quality": 1, "inspection": 1}
 
 # 🔩 Material experience
 MATERIALS = {"stainless": 10, "carbon": 10, "steel": 5, "aluminum": 2}
@@ -87,7 +89,17 @@ TANK_KEYWORDS = [
 ]
 
 # 🎓 Certifications and test terms
-CERTS = ["aws", "asme", "api", "6g", "3g", "certified", "welding school", "weld test"]
+CERTS = [
+    "aws",
+    "asme",
+    "api",
+    "6g",
+    "3g",
+    "certified",
+    "welding school",
+    "weld test",
+    "technical",
+]
 
 # 📍 Savannah zip code prefixes
 SAVANNAH_ZIPS = ["313", "314", "315", "312"]
@@ -103,7 +115,6 @@ def extract_text_from_pdf(uploaded_file):
     return text.lower().replace("/", " ")  # Normalize slashes
 
 
-# -----------------------------------------------------
 # 📆 Flexible Date Parsing for Contextual Experience
 # -----------------------------------------------------
 def parse_flexible_date(date_str):
@@ -121,9 +132,33 @@ def extract_years_from_contextual_date_ranges(text):
     total_years = 0
     max_cap = 20
 
+    # Normalize dashes and wording
     normalized = text.replace("–", "-").replace("—", "-").replace(" to ", "-")
+
+    # Pattern to catch date ranges like Jan 2020 - Mar 2022
     date_pattern = r"(?:\d{1,2}[/-])?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*[ -/]*(20\d{2})"
     matches = re.finditer(rf"({date_pattern})\s*[-–to]+\s*({date_pattern})", normalized)
+
+    WELDING_KEYWORDS = [
+        "welder",
+        "welding",
+        "fabrication",
+        "fabricator",
+        "fitter",
+        "fluxcore",
+        "fcaw",
+        "mig",
+        "gmaw",
+        "smaw",
+        "tig",
+        "gtaw",
+        "blueprint",
+        "metal",
+        "pipe",
+        "grind",
+        "torch",
+        "layout",
+    ]
 
     for match in matches:
         start_str, end_str = match.group(1), match.group(2)
@@ -134,42 +169,20 @@ def extract_years_from_contextual_date_ranges(text):
             span_start = max(0, match.start() - 100)
             span_end = min(len(text), match.end() + 100)
             context = text[span_start:span_end]
-            if any(keyword in context for keyword in WELDING_KEYWORDS):
+            if any(kw in context for kw in WELDING_KEYWORDS):
                 delta = (end_date - start_date).days / 365
                 total_years += min(delta, max_cap - total_years)
 
     return "20+" if total_years > max_cap else str(round(total_years))
 
 
-# -----------------------------------------------------
 # 🧩 Experience Years Wrapper
-# -----------------------------------------------------
 def extract_experience_years(text):
     match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
     if match:
         return match.group(1) + "+" if "+" in match.group(0) else match.group(1)
     else:
         return extract_years_from_contextual_date_ranges(text)
-
-
-# -----------------------------------------------------
-# 🧮 Main Resume Scoring Logic
-# -----------------------------------------------------
-def score_resume(text):
-    score = 0
-    result = {
-        "Experience Match": 0,
-        "Welding Process Match": 0,
-        "Material Experience": 0,
-        "Tools & Fit-Up Match": 0,
-        "Safety & Inspection": 0,
-        "Bonus - Tank Work": 0,
-        "Bonus - Certifications": 0,
-        "Bonus - Local Shop": 0,
-        "Bonus - Relocation": 0,
-        "Total Score": 0,
-        "Flags": [],
-    }
 
     # 🔹 1. Experience Match
     years_text = extract_experience_years(text)
