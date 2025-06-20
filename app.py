@@ -1,52 +1,28 @@
-# app.py
-
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
-from PIL import Image
 
+# ----------------- 🔧 Custom Styling & Logo ------------------
+st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide")
 
-# Verdict logic — updated for 10+ years fallback
-def extract_verdict(results):
-    flags = results["Flags"]
-    score = results["Total Score"]
-    experience = results["Experience Match"]
-    local_shop = results["Bonus - Local Shop"]
-
-    if score >= 85:
-        return "✅ Test"
-    elif score >= 65:
-        return "⚠️ Clarify"
-    elif experience >= 10 and local_shop > 0:
-        return "🕵️ Trust but Verify"
-    else:
-        return "❌ No"
-
-
-# Logo (right aligned)
-logo = Image.open("RigReadyLogo.png")
-col1, col2 = st.columns([6, 1])
-with col2:
-    st.image(logo, width=120)
-
-# Title and tagline
+# Logo (right-aligned)
 st.markdown(
     """
-<div style="display: flex; justify-content: flex-end; margin-bottom: -40px;">
+<div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
     <img src='RigReadyLogo.png' width='160'>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Title and tagline
+# Title, Tagline, Subtitle
 st.markdown(
     """
 <style>
 .centered-title {
     text-align: center;
     font-family: 'Oswald', sans-serif;
-    margin-top: -20px;
+    margin-top: -10px;
 }
 .app-name-tagline {
     font-size: 36px;
@@ -59,7 +35,7 @@ st.markdown(
     font-style: italic;
     color: #aaaaaa;
     font-weight: 500;
-    margin-left: 10px;
+    margin-left: 8px;
 }
 .subtitle {
     font-size: 18px;
@@ -74,7 +50,6 @@ st.markdown(
     margin-top: -8px;
 }
 </style>
-
 <div class="centered-title">
     <div class="app-name-tagline">
         RigReady <span class="tagline-inline">I cut through more BS than a grinder.</span>
@@ -86,21 +61,29 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Upload input
+# ------------------ 📤 Upload Section ---------------------
 uploaded_files = st.file_uploader(
     "Upload Résumés (PDFs)", type="pdf", accept_multiple_files=True
 )
 
 
-def extract_verdict(flags):
-    for flag in flags:
-        if "Send to Weld Test" in flag:
-            return "✅ Test"
-        elif "Promising" in flag:
-            return "⚠️ Clarify"
-    return "❌ That's gonna be a No for me"
+# ------------------ ✅ Verdict Logic ---------------------
+def extract_verdict(results):
+    score = results["Total Score"]
+    exp = results["Experience Match"]
+    tank = results["Bonus - Tank Work"]
+
+    if score >= 85 or tank == 30:
+        return "✅ Send to Weld Test"
+    elif exp >= 10 and 60 <= score < 85:
+        return "🔍 Trust but Verify"
+    elif score >= 65:
+        return "⚠️ Promising – Needs Clarification"
+    else:
+        return "❌ Not Test-Ready"
 
 
+# ------------------ 📊 Process Uploaded Resumes ---------------------
 if uploaded_files:
     score_list = []
 
@@ -108,9 +91,10 @@ if uploaded_files:
         with st.spinner(f"Processing: {file.name}"):
             text = extract_text_from_pdf(file)
             results = score_resume(text)
-            verdict = extract_verdict(results["Flags"])
+            verdict = extract_verdict(results)
             score_list.append((file.name, results, verdict))
 
+    # Summary Table
     st.subheader("📊 Summary Table")
     table_data = []
     for name, results, verdict in score_list:
@@ -134,6 +118,7 @@ if uploaded_files:
     df = pd.DataFrame(table_data).sort_values("Score", ascending=False)
     st.dataframe(df.reset_index(drop=True), use_container_width=True)
 
+    # Individual Breakdown
     for name, results, _ in score_list:
         with st.expander(f"📄 {name} – Detailed Breakdown"):
             st.metric("Total Score", f"{results['Total Score']}%")
@@ -156,16 +141,20 @@ if uploaded_files:
                     for flag in results["Flags"]:
                         st.write(flag)
 
+    # ------------------ 📘 Scoring Guide ---------------------
     with st.expander("📘 Scoring Guide"):
         st.markdown(
             """
-- **✅ Send to Weld Test**: 85%+
-- **⚠️ Promising – Needs Clarification**: 65–84%
-- **❌ Not Test-Ready**: Under 65%
+- **✅ Send to Weld Test**: Score ≥ 85% or direct tank experience
+- **🔍 Trust but Verify**: 60–84% + strong experience (10+ yrs)
+- **⚠️ Promising – Needs Clarification**: Score ≥ 65%
+- **❌ Not Test-Ready**: Score < 65%
 
-**Scoring Logic**:
-- Experience, processes, materials, tools, and safety form the base score.
-- Bonus points are awarded for tank work, certifications, local welding shop experience, and relocation willingness.
-- Working at trusted Savannah-area shops (like Macaljon, Griffin, Coastal Welding) boosts assumed practical skills.
-        """
+**Scoring Breakdown**:
+- Core: Experience, process, materials, tools, safety (Max 100)
+- Bonus: Tank work, certs, local shop, relocation (Max +30)
+- Cap: Final score capped at 100 before bonus
+
+_“Weld-ready or walk — we grind through the fluff so you don’t have to.”_
+"""
         )

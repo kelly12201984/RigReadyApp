@@ -1,6 +1,5 @@
 streamlit
-pdfplumber
 pandas
-pymupdf
-Pillow
+pymupdf # For PyMuPDF (fitz)
+Pillow  # For image/logo display
 
