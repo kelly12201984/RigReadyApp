@@ -186,7 +186,7 @@ def score_resume(text):
     score += local_bonus
 
     result["Bonus - Relocation"] = 5 if "relocate" in text else 0
-    score += result["Bonus - Willing to Relocate"]
+    score += result["Bonus - Relocation"]
 
     # ------------------ Final Output ------------------
     result["Total Score"] = min(score, 100)
