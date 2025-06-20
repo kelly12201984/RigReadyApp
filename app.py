@@ -1,5 +1,3 @@
-RigReady code- still having bugs with experience, but close
-
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
