@@ -14,65 +14,89 @@ def extract_text_from_pdf(uploaded_file):
     text = text.replace("/", " ")  # Normalize slashes
     return text.lower()
 
-
-# ------------------------------
-# HELPER: CONTEXTUAL DATE RANGE EXPERIENCE
-# ------------------------------
-def extract_years_from_contextual_date_ranges(text):
-    date_patterns = re.findall(
-        r"([a-z]{3,9} \d{4}|[0-1]?\d/[0-9]{4}|20\d{2})", text, re.IGNORECASE
-    )
-    date_objects = []
-    for date_str in date_patterns:
-        parsed = parse_flexible_date(date_str)
-        if parsed:
-            date_objects.append(parsed)
-
-    # Group into pairs (start, end)
-    total_months = 0
-    for i in range(len(date_objects) - 1):
-        start_date = date_objects[i]
-        end_date = date_objects[i + 1]
-
-        context_window = text[
-            max(0, text.find(date_str) - 100) : text.find(date_str) + 100
-        ]
-        if any(
-            kw in context_window
-            for kw in ["welder", "welding", "fabrication", "fitter"]
-        ):
-            if start_date is not None and end_date is not None:
-                if start_date < end_date:
-                    months = (end_date.year - start_date.year) * 12 + (
-                        end_date.month - start_date.month
-                    )
-                    total_months += months
-
-    years = round(total_months / 12)
-    return min(years, 20)
+    return fallback if fallback else 0
 
 
-def parse_flexible_date(date_str):
-    for fmt in ("%b %Y", "%B %Y", "%m/%Y", "%Y"):
-        try:
-            return datetime.strptime(date_str, fmt)
-        except:
-            continue
-    return None
+import re
+from datetime import datetime
+from dateutil import parser
 
 
-# ------------------------------
-# EXPERIENCE WRAPPER FUNCTION
-# ------------------------------
-def extract_experience_years(text):
-    # First try keyword method
+def extract_experience_years(text: str) -> int:
+    # Step 1: Quick keyword scan
     match = re.search(r"(\d+)[+ ]*(?:years?|yrs?)", text)
     if match:
         return int(match.group(1))
 
-    # Else, fallback to contextual date scanning
-    fallback = extract_years_from_contextual_date_ranges(text)
-    return fallback if fallback else 0
+    # Step 2: Section targeting (optional but more accurate)
+    experience_section = extract_experience_section(text)
+
+    # Step 3: Scan for date ranges
+    date_ranges = extract_date_ranges(experience_section)
+    if not date_ranges:
+        return 0
+
+    # Step 4: Filter by nearby welding keywords
+    welding_keywords = ["welder", "welding", "fabricator", "fitter", "grinder"]
+    experience_spans = []
+    for start, end, context in date_ranges:
+        if any(kw in context for kw in welding_keywords):
+            experience_spans.append((start, end))
+
+    # Step 5: Calculate total months (avoid overlap)
+    total_months = compute_total_months(experience_spans)
+    return round(total_months / 12)
+
+
+def extract_experience_section(text: str) -> str:
+    # Looks for headings to isolate the experience part
+    match = re.search(
+        r"(experience|employment history|work history)(.*?)\n\n",
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return match.group(2) if match else text
+
+
+def extract_date_ranges(text: str):
+    # Finds common date ranges like "2015–2020", "Feb 2019 to Mar 2022", etc.
+    pattern = re.compile(
+        r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\.?\s*\d{4})\s*[-–to]+\s*((?:present|\d{4}))",
+        re.IGNORECASE,
+    )
+    results = []
+    for match in pattern.finditer(text):
+        raw_start, raw_end = match.groups()
+        start = parse_date(raw_start)
+        end = parse_date(raw_end) if raw_end.lower() != "present" else datetime.today()
+        if start and end and end > start:
+            context_start = max(0, match.start() - 100)
+            context_end = match.end() + 100
+            context = text[context_start:context_end]
+            results.append((start, end, context))
+    return results
+
+
+def parse_date(date_str: str):
+    try:
+        return parser.parse(date_str, fuzzy=True)
+    except Exception:
+        return None
+
+
+def compute_total_months(spans):
+    # Remove overlapping periods
+    spans.sort()
+    merged = []
+    for start, end in spans:
+        if not merged or start > merged[-1][1]:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+    total = 0
+    for start, end in merged:
+        total += (end.year - start.year) * 12 + (end.month - start.month)
+    return total
 
 
 # ------------------------------
