@@ -2,13 +2,24 @@ import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
 from PIL import Image
+import base64
+import io
+
 
 # ----------------- 🔧 Custom Styling & Logo ------------------
 st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide")
 
+
 # Logo section (uses Streamlit's built-in image loader)
-logo = Image.open("RigReadyLogo.png")
-st.image(logo, width=160, use_container_width=False)
+def get_base64_logo(path):
+    with open(path, "rb") as f:
+        img_bytes = f.read()
+    encoded = base64.b64encode(img_bytes).decode()
+    return f"<img src='data:image/png;base64,{encoded}' width='160' style='float: right; margin-top: -40px;'/>"
+
+
+st.markdown(get_base64_logo("RigReadyLogo.png"), unsafe_allow_html=True)
+
 
 # Title, Tagline, Subtitle
 st.markdown(
