@@ -8,12 +8,13 @@ st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide
 # Logo (right-aligned) — make sure the path matches your project folder
 st.markdown(
     """
-<div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
-    <img src='./RigReadyLogo.png' width='160'>
-</div>
-""",
+    <div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
+        <img src="RigReadyLogo.png" width="160">
+    </div>
+    """,
     unsafe_allow_html=True,
 )
+
 
 # Title, Tagline, Subtitle
 st.markdown(
