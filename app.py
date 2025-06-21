@@ -51,7 +51,7 @@ st.markdown(
 }
 .footerline {
     font-size: 14px;
-    color: #888888;
+    color: #ff6600;
     font-style: italic;
     margin-top: -8px;
 }
