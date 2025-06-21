@@ -1,20 +1,14 @@
 import streamlit as st
 from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
+from PIL import Image
 
 # ----------------- 🔧 Custom Styling & Logo ------------------
 st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide")
 
-# Logo (right-aligned) — make sure the path matches your project folder
-st.markdown(
-    """
-    <div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
-        <img src="RigReadyLogo.png" width="160">
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
+# Logo section (uses Streamlit's built-in image loader)
+logo = Image.open("RigReadyLogo.png")
+st.image(logo, width=160, use_column_width=False)
 
 # Title, Tagline, Subtitle
 st.markdown(
