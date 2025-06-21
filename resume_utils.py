@@ -71,6 +71,7 @@ TANK_KEYWORDS = [
     "process vessel",
     "welded tanks",
     "savannah tank",
+    "macaljon",
 ]
 
 LOCAL_SHOPS = {
@@ -205,12 +206,11 @@ def score_resume(text):
     base_score = (
         experience_score + process_score + material_score + tool_score + safety_score
     )
+    local_bonus = score_local_bonus(text)
     bonus_score = (
-        score_tank_bonus(text)
-        + score_local_bonus(text)
-        + score_mig_absence(text)
-        + cert_score
+        score_tank_bonus(text) + local_bonus + score_mig_absence(text) + cert_score
     )
+
     total_score = min(100, base_score + bonus_score)
 
     verdict = interpret_verdict(total_score, years_experience)
@@ -228,4 +228,5 @@ def score_resume(text):
         "Verdict": verdict,
         "Tank Flag": tank_flag,
         "Years of Experience": years_experience,
+        "Local Bonus": local_bonus,
     }
