@@ -8,7 +8,7 @@ st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide
 
 # Logo section (uses Streamlit's built-in image loader)
 logo = Image.open("RigReadyLogo.png")
-st.image(logo, width=160, use_column_width=False)
+st.image(logo, width=160, use_container_width=False)
 
 # Title, Tagline, Subtitle
 st.markdown(
