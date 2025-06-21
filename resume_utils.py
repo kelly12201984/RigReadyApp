@@ -1,10 +1,9 @@
 import re
 import datetime
 from dateutil import parser
-from collections import Counter
 from PyPDF2 import PdfReader
 
-# -- Configurable Keywords & Weights --
+# --------- Updated Keywords ---------
 
 WELDING_KEYWORDS = {
     "mig": 5,
@@ -21,10 +20,11 @@ WELDING_KEYWORDS = {
     "5g": 2,
     "3g": 2,
     "2g": 2,
+    "blueprint": 5,
+    "mechanical drawing": 5,
 }
 
 TOOLS_KEYWORDS = [
-    "blueprint",
     "caliper",
     "micrometer",
     "tape measure",
@@ -40,7 +40,7 @@ TOOLS_KEYWORDS = [
     "plasma",
 ]
 
-MATERIAL_KEYWORDS = ["steel", "stainless", "carbon", "aluminum", "chrome"]
+MATERIAL_KEYWORDS = ["steel", "stainless", "carbon", "aluminum", "metal", "alloy"]
 
 SAFETY_KEYWORDS = {
     "osha": 3,
@@ -73,9 +73,16 @@ TANK_KEYWORDS = [
     "savannah tank",
 ]
 
-LOCAL_SHOPS = ["macaljon", "jcb", "georgia transformer"]
+LOCAL_SHOPS = {
+    "macaljon": 15,
+    "coastal welding": 12,
+    "jcb": 10,
+    "tate metalworks": 10,
+    "gulfstream": 10,
+    "ross engineering": 15,
+}
 
-# -- Helper Functions --
+# --------- Helper Functions ---------
 
 
 def extract_text_from_pdf(file):
@@ -93,7 +100,6 @@ def extract_years_experience(text):
     matches = re.findall(
         r"(\b\w+\s\d{4})\s*(?:to|-|–)\s*(\b\w+\s\d{4}|present|current)", text
     )
-
     for start, end in matches:
         try:
             start_date = parser.parse(start)
@@ -115,8 +121,20 @@ def extract_years_experience(text):
                 total_months += delta
         except Exception:
             continue
-
     return total_months // 12
+
+
+def score_experience_years(years):
+    if years <= 1:
+        return 0
+    elif years <= 4:
+        return 5
+    elif years <= 9:
+        return 10
+    elif years <= 14:
+        return 15
+    else:
+        return 20
 
 
 def score_certifications(text):
@@ -154,7 +172,9 @@ def score_tank_bonus(text):
 
 
 def score_local_bonus(text):
-    return 15 if any(loc in text for loc in LOCAL_SHOPS) else 0
+    return max(
+        [points for shop, points in LOCAL_SHOPS.items() if shop in text], default=0
+    )
 
 
 def score_mig_absence(text):
@@ -170,19 +190,6 @@ def interpret_verdict(score, years_experience):
         return "📞 Promising, call in to talk"
     else:
         return "❌ Not Test-Ready"
-
-
-def score_experience_years(years):
-    if years <= 1:
-        return 0
-    elif years <= 4:
-        return 5
-    elif years <= 9:
-        return 10
-    elif years <= 14:
-        return 15
-    else:
-        return 20
 
 
 def score_resume(text):

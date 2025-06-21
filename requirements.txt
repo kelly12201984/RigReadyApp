@@ -3,4 +3,4 @@ pandas
 PyMuPDF # For PyMuPDF (fitz)
 Pillow  # For image/logo display
 python-dateutil  #parser and relativedelta
-
+PyPDF2>=3.0.0

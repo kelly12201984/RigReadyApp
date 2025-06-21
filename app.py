@@ -5,7 +5,7 @@ import pandas as pd
 # ----------------- 🔧 Custom Styling & Logo ------------------
 st.set_page_config(page_title="RigReady – Welding Résumé Tool", layout="wide")
 
-# Logo (right-aligned) — use correct relative path
+# Logo (right-aligned) — make sure the path matches your project folder
 st.markdown(
     """
 <div style="display: flex; justify-content: flex-end; margin-bottom: -35px;">
@@ -94,7 +94,7 @@ if uploaded_files:
                 "Material": results["Material Points"],
                 "Tools/Fit-Up": results["Tools Points"],
                 "Safety": results["Safety Points"],
-                "Tank Work": results["Bonus Points"] if results["Tank Flag"] else 0,
+                "Tank Work": 5 if results["Tank Flag"] else 0,
                 "Certs": results["Cert Points"],
                 "Verdict": verdict,
             }
@@ -134,9 +134,9 @@ with st.expander("📘 Scoring Guide"):
 - **❌ Not Test-Ready**: Score < 66
 
 **Scoring Breakdown**:
-- Core: Experience, process, materials, tools, safety (Max 100)
-- Bonus: Tank work, certs, local shop, relocation (Max +30)
-- Cap: Final score capped at 100 before bonuses
+- Core: Experience, process, materials, tools, safety
+- Bonus: Tank work, certs, local shop, MIG absence penalty
+- Total score capped at 100
 
 _“Weld-ready or walk — we grind through the fluff so you don’t have to.”_
 """
