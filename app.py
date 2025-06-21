@@ -1,5 +1,5 @@
 import streamlit as st
-from resume_utils_patched_2 import extract_text_from_pdf, score_resume
+from resume_utils import extract_text_from_pdf, score_resume
 import pandas as pd
 
 # ----------------- 🔧 Custom Styling & Logo ------------------
