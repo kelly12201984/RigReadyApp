@@ -130,6 +130,7 @@ if uploaded_files:
 with st.expander("📘 Scoring Guide"):
     st.markdown(
         """
+- **🎯 Prior Tank Experience**: Automatically assigned if tank work is mentioned
 - **✅ Send to Weld Test**: Score ≥ 85%
 - **🔍 TBV: Confirm Type of Experience**: 10+ years but score only 50–65
 - **📞 Promising, call in to talk**: Score between 66 and 84

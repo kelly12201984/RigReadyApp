@@ -182,8 +182,10 @@ def score_mig_absence(text):
     return -5 if "mig" not in text and "gmaw" not in text else 0
 
 
-def interpret_verdict(score, years_experience):
-    if score >= 85:
+def interpret_verdict(score, years_experience, has_tank):
+    if has_tank:
+        return "🎯 Prior Tank Experience"
+    elif score >= 85:
         return "✅ Send to Weld Test"
     elif years_experience >= 10 and 50 <= score <= 65:
         return "🔍 TBV: Confirm Type of Experience"
@@ -203,18 +205,24 @@ def score_resume(text):
     safety_score = score_safety(text)
     cert_score = score_certifications(text)
 
-    base_score = (
-        experience_score + process_score + material_score + tool_score + safety_score
-    )
+    # 🔍 Local bonus logic
     local_bonus = score_local_bonus(text)
+
+    # ✅ Tank detection + flag
+    has_tank = detect_tank_flag(text)
+    tank_flag = "🎯 Prior Tank Experience" if has_tank else ""
+
+    # 🔧 Bonus scoring
     bonus_score = (
         score_tank_bonus(text) + local_bonus + score_mig_absence(text) + cert_score
     )
 
+    # 🧮 Total + Verdict
+    base_score = (
+        experience_score + process_score + material_score + tool_score + safety_score
+    )
     total_score = min(100, base_score + bonus_score)
-
-    verdict = interpret_verdict(total_score, years_experience)
-    tank_flag = "😘 Mentions Tank Experience" if detect_tank_flag(text) else ""
+    verdict = interpret_verdict(total_score, years_experience, has_tank)
 
     return {
         "Experience Points": experience_score,
@@ -227,6 +235,6 @@ def score_resume(text):
         "Total Score": total_score,
         "Verdict": verdict,
         "Tank Flag": tank_flag,
-        "Years of Experience": years_experience,
         "Local Bonus": local_bonus,
+        "Years of Experience": years_experience,
     }
