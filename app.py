@@ -95,6 +95,7 @@ if uploaded_files:
                 "Tools/Fit-Up": results["Tools Points"],
                 "Safety": results["Safety Points"],
                 "Tank Work": 5 if results["Tank Flag"] else 0,
+                "Local Bonus": results["Local Bonus"],
                 "Certs": results["Cert Points"],
                 "Verdict": verdict,
             }
@@ -119,6 +120,7 @@ if uploaded_files:
                 st.markdown("### Bonus & Flags")
                 st.write("Certifications Bonus:", results["Cert Points"])
                 st.write("Tank Bonus:", 5 if results["Tank Flag"] else 0)
+                st.write("Local Bonus:", results["Local Bonus"])
                 if results["Flags"]:
                     st.markdown("### 🚩 Flags")
                     for flag in results["Flags"]:
