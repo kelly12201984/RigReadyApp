@@ -197,6 +197,22 @@ def interpret_verdict(score, years_experience, has_tank):
 
 def score_resume(text):
     text = clean_text(text)
+    if not text.strip():
+        return {
+            "Experience Points": 0,
+            "Process Points": 0,
+            "Material Points": 0,
+            "Tools Points": 0,
+            "Safety Points": 0,
+            "Cert Points": 0,
+            "Bonus Points": 0,
+            "Total Score": 0,
+            "Verdict": "👀 Could not read résumé – check for scanned or image-only PDF",
+            "Tank Flag": "",
+            "Local Bonus": 0,
+            "Years of Experience": 0,
+        }
+
     years_experience = extract_years_experience(text)
     experience_score = score_experience_years(years_experience)
     process_score = score_processes(text)
