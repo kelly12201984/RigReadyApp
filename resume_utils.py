@@ -66,12 +66,14 @@ TANK_KEYWORDS = [
     "tank welder",
     "asme",
     "section viii",
-    "section ix",
     "storage tank",
     "process vessel",
     "welded tanks",
     "savannah tank",
     "macaljon",
+    "ward vessel and exchanger",
+    "ross engineering",
+    "tate metalworks",
 ]
 
 LOCAL_SHOPS = {
