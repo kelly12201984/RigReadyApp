@@ -196,7 +196,6 @@ def interpret_verdict(score, years_experience, has_tank):
 
 
 def score_resume(text):
-    text = clean_text(text)
     if not text.strip():
         return {
             "Experience Points": 0,
@@ -212,7 +211,7 @@ def score_resume(text):
             "Local Bonus": 0,
             "Years of Experience": 0,
         }
-
+    text = clean_text(text)
     years_experience = extract_years_experience(text)
     experience_score = score_experience_years(years_experience)
     process_score = score_processes(text)
