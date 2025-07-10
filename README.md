@@ -1,6 +1,6 @@
 # 🔧 RigReady: Welder Résumé Reviewer App
 
-RigReady is a rule-based résumé reviewer app developed for a **custom tank fabrication company in the Southeast U.S.** The app was built to help the hiring team screen welder résumés more efficiently by scoring them against real job criteria — such as materials experience, blueprint reading, and fabrication tools — with instant, transparent results.
+RigReady is a rule-based résumé reviewer app developed for a **custom tank fabrication company in the Southeast U.S.** The app was built to help the hiring team screen welder résumés more efficiently by scoring them against real job criteria — such as materials experience, blueprint reading, and fabrication tools — with instant, transparent results. 
 
 ---
 
@@ -52,3 +52,12 @@ Each résumé receives a **detailed breakdown** of points awarded and missed, su
 ## 🔐 Context
 
 Built in direct collaboration with a hiring manager in heavy manufacturing, **RigReady was designed for the real-world pace and constraints of fabrication hiring.** It’s not a fluff tool — it solves a bottleneck where hiring speed makes or breaks jobsite timelines.
+
+---
+
+🚀 **Live App**  
+[Launch RigReady](https://rigready.streamlit.app/)
+
+📂 **Source Code**  
+[GitHub Repository](https://github.com/kelly12201984/RigReadyApp/tree/main)
+
